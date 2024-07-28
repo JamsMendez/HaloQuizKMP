@@ -37,7 +37,7 @@ kotlin {
             implementation(libs.coroutine.core)
             implementation(libs.coroutine.android)
             // Extra
-            implementation("tech.annexflow.compose:constraintlayout-compose-multiplatform:0.4.0")
+            implementation(libs.constraintlayout.compose.multiplatform)
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)

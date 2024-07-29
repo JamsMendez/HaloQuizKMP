@@ -23,7 +23,7 @@ import theme.QuizHaloTheme
 fun Question(
   modifier: Modifier = Modifier,
   question: QuestionModel,
-  onOptionSelected: (index: Int, isCorrect: Boolean) -> Unit = { _: Int, _: Boolean -> }
+  onOptionSelected: (index: Int) -> Unit = { _: Int -> }
 ) {
   Column(
     modifier = modifier
@@ -50,7 +50,7 @@ fun Question(
         answer = answer,
         selected = answer.selected,
         expose = question.answered,
-        onOptionSelected = { isCorrect -> onOptionSelected(index, isCorrect) }
+        onOptionSelected = { onOptionSelected(index) }
       )
     }
   }

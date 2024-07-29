@@ -7,10 +7,10 @@ class CountDownTimer(
     private val onTick: (Long) -> Unit,
     private val onFinish: () -> Unit,
     private val coroutineContext: CoroutineContext = Dispatchers.Main
-) {
+) : DownTimer {
     private var job: Job? = null
 
-    fun start() {
+    override fun start() {
         job = CoroutineScope(coroutineContext).launch {
             var timeLeft = millisInFuture
             while (timeLeft > 0) {
@@ -22,7 +22,7 @@ class CountDownTimer(
         }
     }
 
-    fun cancel() {
+    override fun cancel() {
         job?.cancel()
     }
 }

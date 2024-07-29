@@ -18,51 +18,51 @@ import theme.QuizHaloTheme
 
 @Composable
 fun QuestionOption(
-  modifier: Modifier = Modifier,
-  answer: AnswerModel,
-  selected: Boolean = false,
-  expose: Boolean = false,
-  onOptionSelected: (isCorrect: Boolean) -> Unit = {}
+    modifier: Modifier = Modifier,
+    answer: AnswerModel,
+    selected: Boolean = false,
+    expose: Boolean = false,
+    onOptionSelected: () -> Unit = {}
 ) {
-  Box(
-    modifier = Modifier
-      .padding(16.dp, 4.dp)
-      .clickable {
-        onOptionSelected(answer.correct)
-      }
-  ) {
-    Row(
-      modifier = modifier
-        .fillMaxWidth()
-        .background(
-          if (answer.correct && (expose || selected))
-            Color.Green.copy(alpha = 0.45f)
-          else if (!answer.correct && selected)
-            Color.Red.copy(alpha = 0.45f)
-          else
-            Color.White.copy(alpha = 0.45f)
-        )
-        .padding(8.dp)
+    Box(
+        modifier = Modifier
+            .padding(16.dp, 4.dp)
+            .clickable {
+                onOptionSelected()
+            }
     ) {
-      Text(
-        text = answer.content,
-        modifier = Modifier,
-        color = Color.White,
-        style = HaloTypography().subtitle1
-      )
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .background(
+                    if (answer.correct && (expose || selected))
+                        Color.Green.copy(alpha = 0.45f)
+                    else if (!answer.correct && selected)
+                        Color.Red.copy(alpha = 0.45f)
+                    else
+                        Color.White.copy(alpha = 0.45f)
+                )
+                .padding(8.dp)
+        ) {
+            Text(
+                text = answer.content,
+                modifier = Modifier,
+                color = Color.White,
+                style = HaloTypography().subtitle1
+            )
+        }
     }
-  }
 }
 
 @Preview
 @Composable
 fun QuestionOptionPreview() {
-  QuizHaloTheme {
-    QuestionOption(
-      modifier = Modifier.background(Color.Black),
-      answer = AnswerModel(content = "Respuesta", correct = false, selected = false),
-      selected = true,
-      expose = false,
-    )
-  }
+    QuizHaloTheme {
+        QuestionOption(
+            modifier = Modifier.background(Color.Black),
+            answer = AnswerModel(content = "Respuesta", correct = false, selected = false),
+            selected = true,
+            expose = false,
+        )
+    }
 }

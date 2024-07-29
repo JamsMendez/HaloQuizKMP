@@ -25,7 +25,7 @@ fun Quiz(
     question: QuestionModel = QuestionModel(),
     onStartClicked: () -> Unit = {},
     onRankingClicked: () -> Unit = {},
-    onOptionSelected: (index: Int, isCorrect: Boolean) -> Unit = { _: Int, _: Boolean -> },
+    onOptionSelected: (index: Int) -> Unit = { _: Int -> },
 ) {
     Box(modifier = Modifier) {
         Image(

@@ -1,6 +1,6 @@
 package viewmodel
 
-import CountDownTimer
+import SimpleQuiz
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
@@ -10,165 +10,130 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import model.AnswerModel
 import model.QuestionModel
-import util.Constants.NUM_QUESTIONS
-import util.Constants.TOTAL_TIMER
 
 class QuizViewModel(
-    val scope: CoroutineScope
+    private val scope: CoroutineScope
 ) {
-    private val _questionListState: MutableState<QuestionListState> =
-        mutableStateOf(QuestionListState())
     private val _currentQuestionState: MutableState<QuestionModel> = mutableStateOf(QuestionModel())
-    private val _valueTimerDownState: MutableState<Float> = mutableStateOf(1f)
-    private val _questionNumState: MutableState<Int> = mutableStateOf(NUM_QUESTIONS)
+    private val _valueDownTimerState: MutableState<Float> = mutableStateOf(1f)
+    private val _numQuestionState: MutableState<Int> = mutableStateOf(1)
 
-    private var _scorePoints: Int = 0
-    private var _points: Int = 0
-    private var _questionIndex: Int = -1
-
+    val valueDownTimer: State<Float> = _valueDownTimerState
     val currentQuestion: State<QuestionModel> = _currentQuestionState
-    val valueTimerDown: State<Float> = _valueTimerDownState
-    val questionNum: State<Int> = _questionNumState
+    val numQuestion: State<Int> = _numQuestionState
 
-    private val _countDownTimer = CountDownTimer(
-        millisInFuture = 10000L,
-        countDownInterval = 1000L,
-        onTick = { timeLeft ->
-            val points = (timeLeft / 1000)
-            val value = points.toFloat() / TOTAL_TIMER
-            _valueTimerDownState.value = value
-            _points = points.toInt()
-        },
-        onFinish = {
-            exposeUnansweredQuestion()
-            restartTimerDown(false)
-        },
-        coroutineContext = scope.coroutineContext,
-    )
+    private var quiz: SimpleQuiz? = null
 
-    private fun updateNextQuestion(): Boolean {
-        val questions = _questionListState.value.questions
-        val size = questions.size
-        if (size >= NUM_QUESTIONS) {
-            val question = questions[_questionIndex]
-            val options = question.options.toMutableList().shuffled()
-            question.options = options
-
-            _questionNumState.value = NUM_QUESTIONS - _questionIndex
-            _currentQuestionState.value = question
-            return true
-        }
-
-        return false
+    fun startQuestion() {
+        val questions = getQuestions()
+        initSimpleQuiz(questions)
     }
 
-    fun onStartClicked() {
-        _questionIndex += 1
-
-        _questionListState.value = QuestionListState(
-            questions = listOf(
-                QuestionModel(
-                    id = "1",
-                    content = "¿Cómo se llama la famosa misión de halo 3 en la que los scarabs son los grandes protagonistas?",
-                    options = listOf(
-                        AnswerModel("Sierra 117", false),
-                        AnswerModel("El Arca", true),
-                        AnswerModel("Covenant", false),
-                    )
-                ),
-                QuestionModel(
-                    id = "2",
-                    content = "Completa la fecha: ${"Cuando me necesites ..."}",
-                    options = listOf(
-                        AnswerModel("despierame", true),
-                        AnswerModel("llamame", false),
-                        AnswerModel("ahi estare", false),
-                    )
-                ),
-                QuestionModel(
-                    id = "3",
-                    content = "¿Enemigo final de la saga de Halo 3?",
-                    options = listOf(
-                        AnswerModel("La Supermind", false),
-                        AnswerModel("El Didacta", false),
-                        AnswerModel("La Gravemind", true),
-                    )
-                ),
-            )
-        )
-
-        val questions = _questionListState.value.questions.shuffled()
-        _questionListState.value = QuestionListState(questions = questions)
-
-        if (updateNextQuestion()) {
-            runBlocking {
-                _countDownTimer.start()
-            }
-        }
+    fun onSelectedOption(index: Int) {
+        val isCorrect = quiz?.evalAnswerQuestion(index) ?: false
+        if (isCorrect) exposeQuestionCorrect(index) else exposeQuestionIncorrect()
+        nextQuestion(isCorrect)
     }
 
-    fun onOptionSelected(index: Int, isCorrect: Boolean) {
-        if (_valueTimerDownState.value < 1f) {
-            if (isCorrect) _scorePoints += _points
-
-            exposeQuestionResult(index)
-            restartTimerDown(isCorrect)
-        }
+    private fun handleDownTimer(v: Float) {
+        _valueDownTimerState.value = v
     }
 
-    private fun restartTimerDown(isCorrect: Boolean) {
-        _countDownTimer.cancel()
+    private fun handleQuestion(question: QuestionModel) {
+        _currentQuestionState.value = question
+    }
 
-        _valueTimerDownState.value = 1f
+    private fun handleNumQuestion(num: Int = 0) {
+        _numQuestionState.value = num
+    }
 
+    private fun handleTimeout() {
+        exposeQuestionIncorrect()
+        nextQuestion(false)
+    }
+
+    private fun nextQuestion(isPreviousCorrect: Boolean) {
         CoroutineScope(scope.coroutineContext).launch {
-            val timiMillis: Long = if (isCorrect) (1000 * 2).toLong() else 1000 * 3
+            val timiMillis: Long = if (isPreviousCorrect) (1000 * 2).toLong() else 1000 * 3
             delay(timeMillis = timiMillis)
+            handleDownTimer(1f)
+            delay(1000)
 
-            _questionIndex += 1
+            quiz?.next()
 
-            if (_questionIndex < NUM_QUESTIONS) {
-                if (updateNextQuestion()) _countDownTimer.start()
-            }
-
-            if (_questionIndex == NUM_QUESTIONS) {
-                delay(1000L)
-
-                _scorePoints = 0
-                _points = 0
-                _questionIndex = -1
-
-                _valueTimerDownState.value = 1f
-                _currentQuestionState.value = QuestionModel()
-            }
+            val num = quiz?.getNumQuestion() ?: 0
+            handleNumQuestion(num)
         }
     }
 
-    private fun exposeQuestionResult(selectedIndex: Int) {
-        val question = _currentQuestionState.value
+    private fun exposeQuestionIncorrect() {
+        val options = _currentQuestionState.value.options.map { option ->
+            if (!option.correct) option.selected = true
+            option
+        }
 
-        _currentQuestionState.value = QuestionModel(
-            id = question.id,
-            content = question.content,
-            options = question.options.mapIndexed { index, answer ->
-                if (index == selectedIndex) answer.selected = true
-                answer
-            },
+        _currentQuestionState.value = _currentQuestionState.value.copy(
+            options = options,
             answered = true
         )
     }
 
-    private fun exposeUnansweredQuestion() {
-        val question = _currentQuestionState.value
+    private fun exposeQuestionCorrect(selectedOptIndex: Int) {
+        val options = _currentQuestionState.value.options.mapIndexed { index, option ->
+            if (index == selectedOptIndex) option.selected = true
+            option
+        }
 
-        _currentQuestionState.value = QuestionModel(
-            id = question.id,
-            content = question.content,
-            options = question.options.map { answer ->
-                if (!answer.correct) answer.selected = true
-                answer
-            },
+        _currentQuestionState.value = _currentQuestionState.value.copy(
+            options = options,
             answered = true
         )
+    }
+
+    private fun initSimpleQuiz(questions: List<QuestionModel> = listOf()) {
+        quiz = SimpleQuiz(
+            scope = scope,
+            questions = questions,
+            onDownTimer = ::handleDownTimer,
+            onTimeout = ::handleTimeout,
+            onQuestion = ::handleQuestion,
+        )
+
+        quiz?.start()
+    }
+
+    private fun getQuestions(): List<QuestionModel> {
+        // http request using flow
+        val questions = listOf(
+            QuestionModel(
+                id = "1",
+                content = "¿Cómo se llama la famosa misión de halo 3 en la que los scarabs son los grandes protagonistas?",
+                options = listOf(
+                    AnswerModel("Sierra 117", false),
+                    AnswerModel("El Arca", true),
+                    AnswerModel("Covenant", false),
+                )
+            ),
+            QuestionModel(
+                id = "2",
+                content = "Completa la fecha: ${"Cuando me necesites ..."}",
+                options = listOf(
+                    AnswerModel("despierame", true),
+                    AnswerModel("llamame", false),
+                    AnswerModel("ahi estare", false),
+                )
+            ),
+            QuestionModel(
+                id = "3",
+                content = "¿Enemigo final de la saga de Halo 3?",
+                options = listOf(
+                    AnswerModel("La Supermind", false),
+                    AnswerModel("El Didacta", false),
+                    AnswerModel("La Gravemind", true),
+                )
+            ),
+        )
+
+        return questions
     }
 }

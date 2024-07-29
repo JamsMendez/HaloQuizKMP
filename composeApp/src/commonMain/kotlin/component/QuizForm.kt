@@ -11,7 +11,7 @@ fun QuizForm(
   modifier: Modifier = Modifier,
   question: QuestionModel,
   valueTimerDown: Float,
-  onOptionSelected: (index: Int, isCorrect: Boolean) -> Unit = { _: Int, _: Boolean -> }
+  onOptionSelected: (index: Int) -> Unit = { _: Int -> }
 ) {
   Column(
     modifier = modifier
